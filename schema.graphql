@@ -1,0 +1,70 @@
+type Forum @entity {
+  id: ID!
+  posts: [Post!] @derivedFrom(field: "forum")
+}
+
+type ForumPostDayMapping @entity {
+  id: ID!
+  posts: [Post!] @derivedFrom(field: "dayId")
+  rewards: BigInt!
+}
+
+type ForumPostWeekMapping @entity {
+  id: ID!
+  posts: [Post!] @derivedFrom(field: "weekId")
+  rewards: BigInt!
+}
+
+type ForumPostMonthMapping @entity {
+  id: ID!
+  posts: [Post!] @derivedFrom(field: "monthId")
+  rewards: BigInt!
+}
+
+type Post @entity {
+  id: ID!
+  upvotes: BigInt!
+  forum: Forum!
+  monthId: ForumPostMonthMapping!
+  weekId: ForumPostWeekMapping!
+  dayId: ForumPostDayMapping!
+  timestamp: BigInt!
+  user: User!
+  title: String
+  desc: String
+  url: String
+  tags: [String!]
+  upvotedUsers: [Upvote!] @derivedFrom(field: "post")
+}
+
+type User @entity {
+  id: ID!
+  posts: [Post!] @derivedFrom(field: "user")
+  tokenRewards: BigInt!
+  tokenSpent: BigInt!
+  upvotes: [Upvote!] @derivedFrom(field: "user")
+}
+
+type Upvote @entity {
+  id: ID!
+  postId: String!
+  userId: String!
+  post: Post!
+  user: User!
+  timestamp: BigInt!
+}
+
+type Leaderboard @entity {
+  id: ID!
+  reward: BigInt!
+  payout: [LeaderboardPayout!]!
+}
+
+type LeaderboardPayout @entity {
+  id: ID!
+  leaderboardId: Leaderboard!
+  rank: Int!
+  user: User!
+  post: Post!
+  reward: BigInt!
+}
