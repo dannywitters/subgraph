@@ -57,7 +57,7 @@ type Upvote @entity {
 type Leaderboard @entity {
   id: ID!
   reward: BigInt!
-  payout: [LeaderboardPayout!]!
+  payouts: [LeaderboardPayout!]! @derivedFrom(field: "leaderboardId")
 }
 
 type LeaderboardPayout @entity {

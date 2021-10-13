@@ -72,7 +72,7 @@ export function handlepostCreated(event: postCreated): void {
   post.monthId = forumMonth.id;
   post.weekId = forumWeek.id;
   post.dayId = forumDay.id;
-  post.timestamp = event.block.timestamp;
+  post.timestamp = params.post.timestamp;
   post.user = userId;
   post.title = params.post.title;
   post.desc = params.post.desc;
