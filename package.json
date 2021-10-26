@@ -1,13 +1,13 @@
 {
-  "name": "moka",
+  "name": "moka-social-matic",
   "license": "UNLICENSED",
   "scripts": {
     "codegen": "graph codegen",
     "build": "graph build",
-    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ Moka-Protocol/moka",
-    "create-local": "graph create --node http://localhost:8020/ Moka-Protocol/moka",
-    "remove-local": "graph remove --node http://localhost:8020/ Moka-Protocol/moka",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 Moka-Protocol/moka"
+    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ dannywitters/moka-social-matic",
+    "create-local": "graph create --node http://localhost:8020/ dannywitters/moka-social-matic",
+    "remove-local": "graph remove --node http://localhost:8020/ dannywitters/moka-social-matic",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 dannywitters/moka-social-matic"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "0.22.2",

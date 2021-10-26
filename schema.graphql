@@ -1,21 +1,16 @@
-type Forum @entity {
-  id: ID!
-  posts: [Post!] @derivedFrom(field: "forum")
-}
-
-type ForumPostDayMapping @entity {
+type PostDayMapping @entity {
   id: ID!
   posts: [Post!] @derivedFrom(field: "dayId")
   rewards: BigInt!
 }
 
-type ForumPostWeekMapping @entity {
+type PostWeekMapping @entity {
   id: ID!
   posts: [Post!] @derivedFrom(field: "weekId")
   rewards: BigInt!
 }
 
-type ForumPostMonthMapping @entity {
+type PostMonthMapping @entity {
   id: ID!
   posts: [Post!] @derivedFrom(field: "monthId")
   rewards: BigInt!
@@ -24,33 +19,46 @@ type ForumPostMonthMapping @entity {
 type Post @entity {
   id: ID!
   upvotes: BigInt!
-  forum: Forum!
-  monthId: ForumPostMonthMapping!
-  weekId: ForumPostWeekMapping!
-  dayId: ForumPostDayMapping!
+  monthId: PostMonthMapping!
+  weekId: PostWeekMapping!
+  dayId: PostDayMapping!
   timestamp: BigInt!
   user: User!
-  title: String
-  desc: String
-  url: String
+  post: String!
   tags: [String!]
   upvotedUsers: [Upvote!] @derivedFrom(field: "post")
+  payouts: [LeaderboardPayout!] @derivedFrom(field: "post")
 }
 
 type User @entity {
   id: ID!
   posts: [Post!] @derivedFrom(field: "user")
+  upvotes: [Upvote!] @derivedFrom(field: "voter")
+  upvotesBy: [Upvote!] @derivedFrom(field: "creator")
+  payouts: [LeaderboardPayout!] @derivedFrom(field: "user")
+  activity: [UserActivity!] @derivedFrom(field: "user")
   tokenRewards: BigInt!
   tokenSpent: BigInt!
-  upvotes: [Upvote!] @derivedFrom(field: "user")
+}
+
+type UserActivity @entity {
+  id: ID!
+  type: String!
+  user: User!
+  timestamp: BigInt!
+  post: Post
+  upvote: Upvote
+  reward: LeaderboardPayout
 }
 
 type Upvote @entity {
   id: ID!
-  postId: String!
-  userId: String!
   post: Post!
-  user: User!
+  postId: String!
+  voter: User!
+  voterId: String!
+  creator: User!
+  creatorId: String!
   timestamp: BigInt!
 }
 
@@ -62,6 +70,7 @@ type Leaderboard @entity {
 
 type LeaderboardPayout @entity {
   id: ID!
+  type: String!
   leaderboardId: Leaderboard!
   rank: Int!
   user: User!

@@ -1,25 +1,25 @@
 import { BigInt } from "@graphprotocol/graph-ts"
 
 import {
-  MokaForumPosts,
+  MokaPosts,
   postCreated,
   postUpvoted
-} from "../generated/MokaForumPosts/MokaForumPosts"
+} from "../generated/MokaPosts/MokaPosts"
 
 import {
-  MokaForum,
+  MokaToken,
   SettledDailyPrize,
   SettledMonthlyPrize,
   SettledWeeklyPrize
-} from "../generated/MokaForum/MokaForum"
+} from "../generated/MokaToken/MokaToken"
 
 import {
-  Forum,
-  ForumPostDayMapping,
-  ForumPostWeekMapping,
-  ForumPostMonthMapping,
+  PostDayMapping,
+  PostWeekMapping,
+  PostMonthMapping,
   Post,
   User,
+  UserActivity,
   Upvote,
   Leaderboard,
   LeaderboardPayout
@@ -27,37 +27,30 @@ import {
 
 export function handlepostCreated(event: postCreated): void {
   let params = event.params;
-  let contract = MokaForumPosts.bind(event.address);
-  let forumId = contract.parentUid();
   let userId = params.post.user.toHexString();
 
-  let forumMonthId = forumId + '_' + params.post.monthBlock;
-  let forumWeekId = forumId + '_' + params.post.weekBlock;
-  let forumDayId = forumId + '_' + params.post.dayBlock;
+  let monthId = params.post.monthId.toString();
+  let weekId = params.post.weekId.toString();
+  let dayId = params.post.dayId.toString();
 
-  let forum = Forum.load(forumId);
-  let forumMonth = ForumPostMonthMapping.load(forumMonthId);
-  let forumWeek = ForumPostWeekMapping.load(forumWeekId);
-  let forumDay = ForumPostDayMapping.load(forumDayId);
+  let monthMapping = PostMonthMapping.load(monthId);
+  let weekMapping = PostWeekMapping.load(weekId);
+  let dayMapping = PostDayMapping.load(dayId);
   let user = User.load(userId);
 
-  if (forum == null) {
-    forum = new Forum(forumId);
+  if (monthMapping == null) {
+    monthMapping = new PostMonthMapping(monthId);
+    monthMapping.rewards = BigInt.fromI32(0);
   }
 
-  if (forumMonth == null) {
-    forumMonth = new ForumPostMonthMapping(forumMonthId);
-    forumMonth.rewards = BigInt.fromI32(0);
+  if (weekMapping == null) {
+    weekMapping = new PostWeekMapping(weekId);
+    weekMapping.rewards = BigInt.fromI32(0);
   }
 
-  if (forumWeek == null) {
-    forumWeek = new ForumPostWeekMapping(forumWeekId);
-    forumWeek.rewards = BigInt.fromI32(0);
-  }
-
-  if (forumDay == null) {
-    forumDay = new ForumPostDayMapping(forumDayId);
-    forumDay.rewards = BigInt.fromI32(0);
+  if (dayMapping == null) {
+    dayMapping = new PostDayMapping(dayId);
+    dayMapping.rewards = BigInt.fromI32(0);
   }
 
   if (user == null) {
@@ -66,78 +59,95 @@ export function handlepostCreated(event: postCreated): void {
     user.tokenSpent = BigInt.fromI32(0);
   }
 
-  let post = new Post(forumId + '_' + params.id.toString());
+  let post = new Post(params.uid.toString());
   post.upvotes = BigInt.fromI32(0);
-  post.forum = forum.id;
-  post.monthId = forumMonth.id;
-  post.weekId = forumWeek.id;
-  post.dayId = forumDay.id;
+  post.monthId = monthId;
+  post.weekId = weekId;
+  post.dayId = dayId;
   post.timestamp = params.post.timestamp;
   post.user = userId;
-  post.title = params.post.title;
-  post.desc = params.post.desc;
-  post.url = params.post.url;
+  post.post = params.post.post;
   post.tags = params.post.tags;
 
-  user.tokenSpent = user.tokenSpent.plus(BigInt.fromI32(6));
-  forumMonth.rewards = forumMonth.rewards.plus(BigInt.fromI32(2));
-  forumWeek.rewards = forumWeek.rewards.plus(BigInt.fromI32(2));
-  forumDay.rewards = forumDay.rewards.plus(BigInt.fromI32(2));
+  let newUserActivity = new UserActivity(event.transaction.hash.toHex());
+  newUserActivity.type = 'post';
+  newUserActivity.user = userId;
+  newUserActivity.timestamp = event.block.timestamp;
+  newUserActivity.post = params.uid.toString();
 
-  forum.save();
-  forumMonth.save();
-  forumWeek.save();
-  forumDay.save();
+  user.tokenSpent = user.tokenSpent.plus(BigInt.fromString('6000000000000000000'));
+
+  monthMapping.rewards = monthMapping.rewards.plus(BigInt.fromI32(2));
+  weekMapping.rewards = weekMapping.rewards.plus(BigInt.fromI32(2));
+  dayMapping.rewards = dayMapping.rewards.plus(BigInt.fromI32(2));
+
+  monthMapping.save();
+  weekMapping.save();
+  dayMapping.save();
+
   post.save();
   user.save();
+  newUserActivity.save();
 }
 
 export function handlepostUpvoted(event: postUpvoted): void {
   let params = event.params;
-  let contract = MokaForumPosts.bind(event.address);
-  let forumId = contract.parentUid();
 
-  let post = Post.load(forumId + '_' + params.postId.toString());
+  let post = Post.load(params.uid.toString());
 
   if (post) {
-    let userVoter = User.load(params.voter.toHexString());
-    let userVoted = User.load(post.user);
+    let voter = User.load(params.voter.toHexString());
+    let creator = User.load(post.user);
   
-    if (userVoter == null) {
-      userVoter = new User(params.voter.toHexString());
-      userVoter.tokenRewards = BigInt.fromI32(0);
-      userVoter.tokenSpent = BigInt.fromI32(0);
+    if (voter == null) {
+      voter = new User(params.voter.toHexString());
+      voter.tokenRewards = BigInt.fromI32(0);
+      voter.tokenSpent = BigInt.fromI32(0);
     }
   
-    if (userVoted == null) {
-      userVoted = new User(post.user);
-      userVoted.tokenRewards = BigInt.fromI32(0);
-      userVoted.tokenSpent = BigInt.fromI32(0);
+    if (creator == null) {
+      creator = new User(post.user);
+      creator.tokenRewards = BigInt.fromI32(0);
+      creator.tokenSpent = BigInt.fromI32(0);
     }
   
     post.upvotes = post.upvotes.plus(BigInt.fromI32(1));
-    userVoter.tokenSpent = userVoter.tokenSpent.plus(BigInt.fromI32(1));
-    userVoted.tokenRewards = userVoted.tokenRewards.plus(BigInt.fromI32(1));
+    voter.tokenSpent = voter.tokenSpent.plus(BigInt.fromString('1000000000000000000'));
+    creator.tokenRewards = creator.tokenRewards.plus(BigInt.fromString('1000000000000000000'));
 
-    let upvote = new Upvote(params.voter.toHexString() + '_' + forumId + '_' + params.postId.toString());
+    let upvote = new Upvote(params.voter.toHexString() + '_' + params.uid.toString());
     upvote.timestamp = event.block.timestamp;
-    upvote.user = userVoter.id;
-    upvote.userId = userVoter.id;
+    upvote.voter = voter.id;
+    upvote.voterId = voter.id;
+    upvote.creator = creator.id;
+    upvote.creatorId = creator.id;
     upvote.post = post.id;
     upvote.postId = post.id;
 
+    let newUserActivity = new UserActivity(event.transaction.hash.toHex() + '_1');
+    newUserActivity.type = 'upvote';
+    newUserActivity.user = voter.id;
+    newUserActivity.timestamp = event.block.timestamp;
+    newUserActivity.upvote = params.voter.toHexString() + '_' + params.uid.toString();
+
+    let newUserActivityB = new UserActivity(event.transaction.hash.toHex() + '_2');
+    newUserActivityB.type = 'upvote-receive';
+    newUserActivityB.user = creator.id;
+    newUserActivityB.timestamp = event.block.timestamp;
+    newUserActivityB.upvote = params.voter.toHexString() + '_' + params.uid.toString();
+
     post.save();
-    userVoter.save();
-    userVoted.save();
+    voter.save();
+    creator.save();
     upvote.save();
+    newUserActivity.save();
+    newUserActivityB.save();
   }
 }
 
 export function handleSettledDailyPrize(event: SettledDailyPrize): void {
   let params = event.params;
-  let contract = MokaForum.bind(event.address);
-  let forumId = contract.uid();
-  let leaderboardId = forumId + '_' + params.dailyId + '_day';
+  let leaderboardId = params.dailyId.toString() + '_day';
   let leaderboard = new Leaderboard(leaderboardId);
   let totalRewards = BigInt.fromI32(0);
 
@@ -145,13 +155,32 @@ export function handleSettledDailyPrize(event: SettledDailyPrize): void {
     let data = params.param1[i];
     let leaderboardPayout = new LeaderboardPayout(leaderboardId + '_' + (i + 1).toString());
     leaderboardPayout.leaderboardId = leaderboardId;
+    leaderboardPayout.type = 'daily';
     leaderboardPayout.rank = data.rank;
     leaderboardPayout.user = data.user.toHexString();
-    leaderboardPayout.post = forumId + '_' + data.postId.toString();
+    leaderboardPayout.post = data.postId.toString();
     leaderboardPayout.reward = data.prize;
+
+    let user = User.load(data.user.toHexString());
+
+    if (user == null) {
+      user = new User(data.user.toHexString());
+      user.tokenRewards = BigInt.fromI32(0);
+      user.tokenSpent = BigInt.fromI32(0);
+    }
+
+    user.tokenRewards = user.tokenRewards.plus(data.prize);
+
+    let newUserActivity = new UserActivity(event.transaction.hash.toHex() + '_' + (i + 1).toString());
+    newUserActivity.type = 'reward-daily';
+    newUserActivity.user = data.user.toHexString();
+    newUserActivity.timestamp = event.block.timestamp;
+    newUserActivity.reward = leaderboardId + '_' + (i + 1).toString();
 
     totalRewards = totalRewards.plus(data.prize);
     leaderboardPayout.save();
+    user.save();
+    newUserActivity.save();
   }
 
   leaderboard.reward = totalRewards;
@@ -160,9 +189,7 @@ export function handleSettledDailyPrize(event: SettledDailyPrize): void {
 
 export function handleSettledWeeklyPrize(event: SettledWeeklyPrize): void {
   let params = event.params;
-  let contract = MokaForum.bind(event.address);
-  let forumId = contract.uid();
-  let leaderboardId = forumId + '_' + params.weeklyId + '_week';
+  let leaderboardId = params.weeklyId.toString() + '_week';
   let leaderboard = new Leaderboard(leaderboardId);
   let totalRewards = BigInt.fromI32(0);
 
@@ -170,13 +197,32 @@ export function handleSettledWeeklyPrize(event: SettledWeeklyPrize): void {
     let data = params.param1[i];
     let leaderboardPayout = new LeaderboardPayout(leaderboardId + '_' + (i + 1).toString());
     leaderboardPayout.leaderboardId = leaderboardId;
+    leaderboardPayout.type = 'weekly';
     leaderboardPayout.rank = data.rank;
     leaderboardPayout.user = data.user.toHexString();
-    leaderboardPayout.post = forumId + '_' + data.postId.toString();
+    leaderboardPayout.post = data.postId.toString();
     leaderboardPayout.reward = data.prize;
+
+    let user = User.load(data.user.toHexString());
+
+    if (user == null) {
+      user = new User(data.user.toHexString());
+      user.tokenRewards = BigInt.fromI32(0);
+      user.tokenSpent = BigInt.fromI32(0);
+    }
+
+    user.tokenRewards = user.tokenRewards.plus(data.prize);
+
+    let newUserActivity = new UserActivity(event.transaction.hash.toHex() + '_' + (i + 1).toString());
+    newUserActivity.type = 'reward-weekly';
+    newUserActivity.user = data.user.toHexString();
+    newUserActivity.timestamp = event.block.timestamp;
+    newUserActivity.reward = leaderboardId + '_' + (i + 1).toString();
 
     totalRewards = totalRewards.plus(data.prize);
     leaderboardPayout.save();
+    user.save();
+    newUserActivity.save();
   }
 
   leaderboard.reward = totalRewards;
@@ -185,9 +231,7 @@ export function handleSettledWeeklyPrize(event: SettledWeeklyPrize): void {
 
 export function handleSettledMonthlyPrize(event: SettledMonthlyPrize): void {
   let params = event.params;
-  let contract = MokaForum.bind(event.address);
-  let forumId = contract.uid();
-  let leaderboardId = forumId + '_' + params.monthlyId + '_month';
+  let leaderboardId = params.monthlyId.toString() + '_month';
   let leaderboard = new Leaderboard(leaderboardId);
   let totalRewards = BigInt.fromI32(0);
 
@@ -195,13 +239,32 @@ export function handleSettledMonthlyPrize(event: SettledMonthlyPrize): void {
     let data = params.param1[i];
     let leaderboardPayout = new LeaderboardPayout(leaderboardId + '_' + (i + 1).toString());
     leaderboardPayout.leaderboardId = leaderboardId;
+    leaderboardPayout.type = 'monthly';
     leaderboardPayout.rank = data.rank;
     leaderboardPayout.user = data.user.toHexString();
-    leaderboardPayout.post = forumId + '_' + data.postId.toString();
+    leaderboardPayout.post = data.postId.toString();
     leaderboardPayout.reward = data.prize;
+
+    let user = User.load(data.user.toHexString());
+
+    if (user == null) {
+      user = new User(data.user.toHexString());
+      user.tokenRewards = BigInt.fromI32(0);
+      user.tokenSpent = BigInt.fromI32(0);
+    }
+
+    user.tokenRewards = user.tokenRewards.plus(data.prize);
+
+    let newUserActivity = new UserActivity(event.transaction.hash.toHex() + '_' + (i + 1).toString());
+    newUserActivity.type = 'reward-monthly';
+    newUserActivity.user = data.user.toHexString();
+    newUserActivity.timestamp = event.block.timestamp;
+    newUserActivity.reward = leaderboardId + '_' + (i + 1).toString();
 
     totalRewards = totalRewards.plus(data.prize);
     leaderboardPayout.save();
+    user.save();
+    newUserActivity.save();
   }
 
   leaderboard.reward = totalRewards;
